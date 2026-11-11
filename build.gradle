@@ -1,0 +1,159 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.148'
+    id 'idea'
+}
+
+// Jumper for Minecraft 1.21.1 + NeoForge.
+
+tasks.named('wrapper', Wrapper).configure {
+    distributionType = Wrapper.DistributionType.BIN
+}
+
+version = "${mod_version}+${minecraft_version}-neoforge"
+group = mod_group_id
+
+repositories {
+    // Mekanism, only so power cables can be tested in the dev game (step 9). Jumper never depends on another mod.
+    maven {
+        name = "ModMaven"
+        url = "https://modmaven.dev"
+    }
+    // Modrinth's maven: Jade in the dev game (step 10).
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
+}
+
+base {
+    archivesName = mod_id
+}
+
+// Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+            // Open the dev game window at 1920x1080.
+            programArguments.addAll '--width', '1920', '--height', '1080'
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+            // Own folder, so a dedicated server and the normal dev client can run at the same time.
+            gameDirectory = project.file('run-server')
+        }
+
+        // A second player for multiplayer tests: ./gradlew runClient2 (name Dev2, own folder and settings).
+        client2 {
+            client()
+            programArguments.addAll '--username', 'Dev2', '--width', '1280', '--height', '720'
+            gameDirectory = project.file('run-client2')
+        }
+
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+// 'localRuntime' is for mods that should be in the dev game for testing but are never a dependency of Jumper.
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    // Mekanism + Mekanism Generators in ./gradlew runClient only, to test powering the anchor with real cables.
+    // Never shipped with Jumper and never needed by it.
+    localRuntime "mekanism:Mekanism:${mekanism_version}"
+    localRuntime "mekanism:Mekanism:${mekanism_version}:generators"
+    // Jade in the dev game only: look at the anchor to see its stored FE (Jade reads the standard energy capability).
+    localRuntime "maven.modrinth:jade:${jade_version}"
+    // spark profiler in the dev game only, for the lag test (step 17). Never a dependency of Jumper.
+    localRuntime "maven.modrinth:spark:${spark_version}"
+}
+
+// Dev server setup (step 17): before the first ./gradlew runServer, write a server.properties for testing with the
+// dev clients (offline names Dev and Dev2, no spawn protection) and make Dev an operator. Never overwrites a file
+// that exists. The EULA is not accepted here: you do that yourself in run-server/eula.txt.
+def devServerDir = file('run-server')
+tasks.matching { it.name == 'runServer' }.configureEach {
+    doFirst {
+        devServerDir.mkdirs()
+        def props = new File(devServerDir, 'server.properties')
+        if (!props.exists()) {
+            props.text = 'online-mode=false\nspawn-protection=0\nmotd=Jumper test server\n'
+        }
+        def ops = new File(devServerDir, 'ops.json')
+        if (!ops.exists()) {
+            def id = UUID.nameUUIDFromBytes('OfflinePlayer:Dev'.getBytes('UTF-8'))
+            ops.text = '[{"uuid":"' + id + '","name":"Dev","level":4,"bypassesPlayerLimit":false}]\n'
+        }
+    }
+}
+
+// Fill in neoforge.mods.toml from gradle.properties.
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// Ship the MIT license inside the mod jar as LICENSE_<modid>.txt.
+// The name is worked out here, while the build is set up: inside rename { } Gradle can't see mod_id.
+def licenseInJar = "LICENSE_${project.property('mod_id')}.txt"
+tasks.named('jar', Jar).configure {
+    from(rootProject.file('LICENSE.txt')) {
+        rename { String ignored -> licenseInJar }
+    }
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

@@ -1,0 +1,8 @@
+{
+  "parent": "jumper:block/jumper_anchor",
+  "overrides": [
+    { "predicate": { "jumper:tier": 2 }, "model": "jumper:block/jumper_anchor_t2" },
+    { "predicate": { "jumper:tier": 3 }, "model": "jumper:block/jumper_anchor_t3" },
+    { "predicate": { "jumper:tier": 4 }, "model": "jumper:block/jumper_anchor_t4" }
+  ]
+}
