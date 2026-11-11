@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "tier=1": {
+      "model": "jumper:block/jumper_anchor"
+    },
+    "tier=2": {
+      "model": "jumper:block/jumper_anchor_t2"
+    },
+    "tier=3": {
+      "model": "jumper:block/jumper_anchor_t3"
+    },
+    "tier=4": {
+      "model": "jumper:block/jumper_anchor_t4"
+    }
+  }
+}

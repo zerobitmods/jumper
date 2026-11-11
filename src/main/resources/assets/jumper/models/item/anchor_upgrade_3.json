@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "jumper:item/anchor_upgrade_3"
+  }
+}
