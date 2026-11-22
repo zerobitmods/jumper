@@ -60,8 +60,10 @@ public final class JumperRules {
             Setting.flag("tier4.crossDimension", true, "Whether tier 4 can jump between dimensions."),
             Setting.number("power.upkeepPerSpot", 2, 0, 1_000_000,
                     "Extra FE per tick for every spot saved on a tier 2+ anchor (all its linked players together)."),
-            Setting.number("power.bufferSeconds", 3600, 1, 604_800,
-                    "How many seconds of its current upkeep an anchor can store."),
+            Setting.number("power.bufferSeconds", 30, 1, 604_800,
+                    "How many seconds of its current upkeep an anchor can store: how long it keeps working after its "
+                            + "power stops. It never takes in more than twice its upkeep per tick on average, so "
+                            + "filling it doesn't starve other machines."),
             Setting.number("jumps.cooldownTicks", 40, 10, 72_000,
                     "Ticks a player must wait between jumps (20 ticks = 1 second). At least 10, because a jump can "
                     + "load the chunk it lands in."),
@@ -74,7 +76,7 @@ public final class JumperRules {
     private static final long[] upkeep = {0, 50_000, 500_000, 5_000_000};
     private static final boolean[] crossDimension = {false, false, false, true};
     private static long upkeepPerSpot = 2;
-    private static int bufferTicks = 3600 * 20;
+    private static int bufferTicks = 30 * 20;
     private static int cooldownTicks = 40;
     private static boolean blockAfterHit = true;
 
@@ -165,6 +167,14 @@ public final class JumperRules {
      */
     public static int reach(int tier) {
         return crossDimension(tier) ? UNLIMITED : range(tier);
+    }
+
+    /** An anchor takes in at most this many times its upkeep per tick, so it never soaks up a whole power network. */
+    public static final int INTAKE_MULTIPLIER = 2;
+
+    /** Most FE an anchor using this much FE per tick takes in during one tick. */
+    public static long maxIntakePerTick(long rate) {
+        return rate > Long.MAX_VALUE / INTAKE_MULTIPLIER ? Long.MAX_VALUE : rate * INTAKE_MULTIPLIER;
     }
 
     /** An anchor holds this many ticks of its current upkeep. */

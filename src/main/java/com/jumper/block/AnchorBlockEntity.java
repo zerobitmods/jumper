@@ -129,13 +129,44 @@ public class AnchorBlockEntity extends BlockEntity {
         return level instanceof ServerLevel serverLevel ? JumperData.get(serverLevel.getServer()) : null;
     }
 
-    /** Accepts FE, never gives it back. */
+    /**
+     * Accepts FE, never gives it back. Takes in at most {@link JumperRules#maxIntakePerTick} on average, counted over
+     * every cable and side together, so the rest of the power goes on to other machines. The allowance builds up for
+     * up to one upkeep payment's worth of ticks, so pipes that push every few ticks instead of every tick still keep
+     * the anchor powered.
+     */
     private final class EnergyPort implements IEnergyStorage {
+        /** The game tick {@link #allowance} was last brought up to date; MIN_VALUE until the first push. */
+        private long allowanceTick = Long.MIN_VALUE;
+        /** FE that may still come in before more builds up. */
+        private long allowance;
+
         @Override
         public int receiveEnergy(int toReceive, boolean simulate) {
             JumperData data = data();
             AnchorRecord anchor = record(data);
-            return anchor == null ? 0 : data.receiveEnergy(anchor, toReceive, simulate);
+            if (anchor == null || toReceive <= 0) {
+                return 0;
+            }
+            long perTick = JumperRules.maxIntakePerTick(anchor.rate());
+            long most = perTick > Long.MAX_VALUE / DRAIN_INTERVAL ? Long.MAX_VALUE : perTick * DRAIN_INTERVAL;
+            long now = level.getGameTime();
+            long left;
+            if (allowanceTick == Long.MIN_VALUE || now < allowanceTick || now - allowanceTick >= DRAIN_INTERVAL) {
+                left = most; // first push, or long enough since the last one: a full allowance
+            } else {
+                long built = perTick * (now - allowanceTick); // at most perTick * 19: can't overflow
+                left = Math.min(most, allowance + built);
+            }
+            if (left <= 0) {
+                return 0;
+            }
+            int accepted = data.receiveEnergy(anchor, (int) Math.min(toReceive, left), simulate);
+            if (!simulate) {
+                allowance = left - accepted;
+                allowanceTick = now;
+            }
+            return accepted;
         }
 
         @Override
