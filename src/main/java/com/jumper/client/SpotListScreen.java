@@ -6,10 +6,8 @@ import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,8 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The list of saved spots, opened from the wheel's "Edit spots" button: rename, change the picture (click it to use the
- * item in hand), move up or down, delete (asks once), and Undo. Moving a spot slides the whole list by one row instead,
+ * The list of saved spots, opened from the wheel's "Edit spots" button: rename, change the picture (click it to open
+ * the {@link PicturePickerScreen}), move up or down, delete (asks once), and Undo. Moving a spot slides the whole list by one row instead,
  * so the spot (and its arrow) stays under the mouse and repeated clicks keep moving the same spot; near the ends of the
  * list that leaves an empty gap until the list is scrolled.
  *
@@ -464,23 +462,30 @@ public class SpotListScreen extends WheelScreenBase {
                 this.confirmName = entry.name();
             }
         } else if (part == PICTURE) {
-            ItemStack held = heldItem();
-            if (!held.isEmpty()) {
-                click(1.0F);
-                ClientState.Entry changed = new ClientState.Entry(entry.name(), held.copyWithCount(1),
-                        BuiltInRegistries.ITEM.getKey(held.getItem()).toString());
-                this.rows.set(index, changed);
-                if (!changed.iconId().equals(entry.iconId())) {
-                    remember(new Change(PICTURE, index, entry, changed));
-                }
-                send(EditPayload.PICTURE, index, entry.name(), "");
-            }
+            click(1.0F);
+            Minecraft.getInstance().setScreen(new PicturePickerScreen(entry.name(), entry.iconId(),
+                    (id, picture) -> changePicture(index, entry, id, picture), this));
         } else if (part == RENAME) {
             click(1.0F);
             List<ClientState.Entry> others = List.copyOf(this.rows);
             Minecraft.getInstance().setScreen(new NameScreen(Component.translatable("screen.jumper.name.rename"),
                     entry.icon(), entry.name(), others, index, name -> rename(index, entry, name), this));
         }
+    }
+
+    /** The picker gave back a picture. As with a rename, check the row is still the same spot. */
+    private void changePicture(int index, ClientState.Entry entry, String id, Picture picture) {
+        if (index >= this.rows.size() || !this.rows.get(index).name().equals(entry.name())) {
+            return;
+        }
+        ClientState.Entry before = this.rows.get(index);
+        if (id.equals(before.iconId())) {
+            return;
+        }
+        ClientState.Entry after = new ClientState.Entry(before.name(), picture, id);
+        this.rows.set(index, after);
+        remember(new Change(PICTURE, index, before, after));
+        send(EditPayload.PICTURE_SET, index, before.name(), id);
     }
 
     /** The name box said Save. The row may have moved meanwhile only if the server changed the list; check by name. */
@@ -586,11 +591,6 @@ public class SpotListScreen extends WheelScreenBase {
         this.rows.set(b, first);
     }
 
-    private static ItemStack heldItem() {
-        var player = Minecraft.getInstance().player;
-        return player == null ? ItemStack.EMPTY : player.getMainHandItem();
-    }
-
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         // The inventory key (E unless rebound) closes the list, the same as Esc and as on the wheel.
@@ -685,7 +685,7 @@ public class SpotListScreen extends WheelScreenBase {
         int numberColor = mix(locked ? COLOR_TEXT_LOCKED : COLOR_TEXT_SOFT, COLOR_DIVIDER, glow);
         graphics.drawString(this.font, number, this.numberRight - this.font.width(number), y + 6, numberColor);
 
-        graphics.renderItem(entry.icon(), this.rowLeft + 4, y + 2);
+        entry.icon().draw(graphics, this.rowLeft + 4, y + 2);
         int textLeft = this.rowLeft + 26;
         if (confirming) {
             String question = Component.translatable("screen.jumper.list.delete_question", entry.name()).getString();
@@ -782,8 +782,7 @@ public class SpotListScreen extends WheelScreenBase {
             }
             switch (this.hoveredPart) {
                 case PICTURE:
-                    return Component.translatable(heldItem().isEmpty() ? "screen.jumper.list.picture_empty"
-                            : "screen.jumper.list.picture", name);
+                    return Component.translatable("screen.jumper.list.picture", name);
                 case RENAME:
                     return Component.translatable("screen.jumper.list.rename_hint", name);
                 case UP:

@@ -32,25 +32,25 @@ public final class ClientEdits {
      * The item a spot saved here would show: the block looked at (within reach), else the block underfoot, else an
      * ender pearl. The server works it out the same way when it saves; this is only for the name box.
      */
-    public static ItemStack suggestedPicture() {
+    public static Picture suggestedPicture() {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
-            return new ItemStack(Items.ENDER_PEARL);
+            return Picture.of(new ItemStack(Items.ENDER_PEARL));
         }
         HitResult hit = player.pick(JumperRules.ICON_REACH, 1.0F, false);
         if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult blockHit) {
             Item looked = player.level().getBlockState(blockHit.getBlockPos()).getBlock().asItem();
             if (looked != Items.AIR) {
-                return new ItemStack(looked);
+                return Picture.of(new ItemStack(looked));
             }
         }
         Item below = player.level().getBlockState(player.getOnPos()).getBlock().asItem();
-        return new ItemStack(below != Items.AIR ? below : Items.ENDER_PEARL);
+        return Picture.of(new ItemStack(below != Items.AIR ? below : Items.ENDER_PEARL));
     }
 
     /** The picture's name, with a number added if a spot is already called that (same rule as the server). */
-    public static String suggestedName(ItemStack picture, List<ClientState.Entry> spots) {
-        String base = picture.getHoverName().getString().trim();
+    public static String suggestedName(Picture picture, List<ClientState.Entry> spots) {
+        String base = picture.name().getString().trim();
         if (base.isEmpty()) {
             base = "Spot";
         }

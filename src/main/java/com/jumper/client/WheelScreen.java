@@ -9,7 +9,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -339,7 +338,7 @@ public class WheelScreen extends WheelScreenBase {
             JumperNetwork.sendToServer(WheelActionPayload.jump(pageStart() + target));
         } else if (target == SAVE && canSave()) {
             // Name it first: the box opens with the suggested name filled in and selected.
-            ItemStack picture = ClientEdits.suggestedPicture();
+            Picture picture = ClientEdits.suggestedPicture();
             List<ClientState.Entry> current = ClientState.spots();
             Minecraft.getInstance().setScreen(new NameScreen(Component.translatable("screen.jumper.name.new"), picture,
                     ClientEdits.suggestedName(picture, current), current, -1,
@@ -473,7 +472,7 @@ public class WheelScreen extends WheelScreenBase {
             // With the name on two lines the picture moves up, so picture and name stay centered on the same point.
             boolean twoLines = this.nameBottom[i] != null;
             int pictureTop = twoLines ? y - 18 : y - 13;
-            graphics.renderItem(spot.icon(), x - 8, pictureTop);
+            spot.icon().draw(graphics, x - 8, pictureTop);
             boolean isLocked = locked(pageStart() + i);
             if (isLocked) {
                 // A dark veil over the picture (drawn above items, which sit higher than flat fills).
