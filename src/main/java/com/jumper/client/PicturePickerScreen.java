@@ -133,7 +133,6 @@ public class PicturePickerScreen extends WheelScreenBase {
         this.box = new EditBox(this.font, this.gridLeft, this.top + 20, gridWidth, 14,
                 Component.translatable("screen.jumper.picker.search"));
         this.box.setMaxLength(50);
-        this.box.setHint(Component.translatable("screen.jumper.picker.search"));
         this.box.setValue(text);
         this.box.setResponder(value -> filter());
         addWidget(this.box);
@@ -333,8 +332,9 @@ public class PicturePickerScreen extends WheelScreenBase {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // Enter picks the first match, but only after a search (on its own it would just change the picture).
         if ((keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_NUMPADENTER)
-                && !this.matches.isEmpty()) {
+                && !this.box.getValue().isBlank() && !this.matches.isEmpty()) {
             Choice first = this.matches.get(0);
             pick(first.id(), first.picture());
             return true;
@@ -387,6 +387,11 @@ public class PicturePickerScreen extends WheelScreenBase {
         graphics.drawCenteredString(this.font, fit(this.title.getString(), this.panelWidth - 2 * PAD),
                 this.width / 2, this.top + 7, COLOR_TEXT);
         this.box.render(graphics, mouseX, mouseY, partialTick);
+        if (this.box.getValue().isEmpty()) {
+            // The box's own hint only shows while it isn't focused, and here it always is.
+            graphics.drawString(this.font, Component.translatable("screen.jumper.picker.search"), this.gridLeft + 10,
+                    this.top + 23, COLOR_TEXT_LOCKED);
+        }
 
         Component hint = null;
         int hoveredHotbar = hotbarAt(mouseX, mouseY);
