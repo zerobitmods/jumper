@@ -1,7 +1,6 @@
 package com.jumper.client;
 
 import com.jumper.net.SyncPayload;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -45,8 +44,6 @@ public final class ClientState {
     private static int here;
     private static int range;
     private static boolean[] far = new boolean[0];
-    /** Client game time when the power numbers arrived, to count them down between updates. */
-    private static long syncedAt;
     private static List<Entry> spots = List.of();
     /** Number of the last edit the server says it handled (see {@code ClientEdits}). */
     private static int editSeq;
@@ -78,7 +75,6 @@ public final class ClientState {
         here = payload.here();
         range = payload.range();
         far = payload.far();
-        syncedAt = gameTime();
         spots = entries;
         editSeq = payload.editSeq();
         if (payload.linked()) {
@@ -88,11 +84,6 @@ public final class ClientState {
         anchorDimension = payload.linked() ? ResourceLocation.tryParse(payload.anchorDimension()) : null;
         anchorPos = payload.anchorPos();
         reachNow = payload.linked() ? payload.reachNow() : -1;
-    }
-
-    private static long gameTime() {
-        Minecraft minecraft = Minecraft.getInstance();
-        return minecraft.level == null ? 0 : minecraft.level.getGameTime();
     }
 
     static void clear() {
@@ -207,12 +198,11 @@ public final class ClientState {
         return rate;
     }
 
-    /** Stored FE now, estimated: what the server last said, minus the upkeep since (while the anchor is running). */
+    /**
+     * Stored FE, as the server last said. Not counted down between updates: power keeps coming in while the anchor is
+     * on a cable, so a guess would run to zero while it is really full. The open wheel asks for fresh numbers instead.
+     */
     public static long energyNow() {
-        if (power != POWER_ON || rate <= 0) {
-            return energy;
-        }
-        long elapsed = Math.max(0, gameTime() - syncedAt);
-        return elapsed > energy / rate ? 0 : Math.max(0, energy - elapsed * rate);
+        return energy;
     }
 }

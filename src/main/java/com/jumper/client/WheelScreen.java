@@ -120,6 +120,9 @@ public class WheelScreen extends WheelScreenBase {
     private int editRight;
     private Component editLabel;
 
+    /** Ticks between power refreshes while the wheel is open. */
+    private static final int STATUS_REFRESH_TICKS = 20;
+
     private int ticksOpen;
     /** True once the key was let go without picking: the wheel then works by clicking. */
     private boolean clickMode;
@@ -303,6 +306,10 @@ public class WheelScreen extends WheelScreenBase {
     @Override
     public void tick() {
         this.ticksOpen++;
+        // Fresh power numbers once a second while open (the server answers at most every 10 ticks).
+        if (this.ticksOpen % STATUS_REFRESH_TICKS == 0) {
+            JumperNetwork.sendToServer(WheelActionPayload.status());
+        }
         // The key-up event can be missed (for example when it happens in the same instant the wheel opens), so the
         // keyboard is also asked directly.
         if (!this.clickMode && JumperKeys.WHEEL.getKey().getType() == InputConstants.Type.KEYSYM
