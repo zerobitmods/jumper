@@ -60,7 +60,7 @@ public final class JumperRules {
             Setting.flag("tier4.crossDimension", true, "Whether tier 4 can jump between dimensions."),
             Setting.number("power.upkeepPerSpot", 2, 0, 1_000_000,
                     "Extra FE per tick for every spot saved on a tier 2+ anchor (all its linked players together)."),
-            Setting.number("power.bufferSeconds", 30, 1, 604_800,
+            Setting.number("power.storageSeconds", 30, 1, 604_800,
                     "How many seconds of its current upkeep an anchor can store: how long it keeps working after its "
                             + "power stops. It never takes in more than twice its upkeep per tick on average, so "
                             + "filling it doesn't starve other machines."),
@@ -112,7 +112,7 @@ public final class JumperRules {
         }
         switch (key) {
             case "power.upkeepPerSpot" -> upkeepPerSpot = Math.max(0, value);
-            case "power.bufferSeconds" -> bufferTicks = (int) Math.max(20, Math.min(604_800L * 20, value * 20));
+            case "power.storageSeconds" -> bufferTicks = (int) Math.max(20, Math.min(604_800L * 20, value * 20));
             case "jumps.cooldownTicks" -> cooldownTicks = (int) Math.max(0, Math.min(72_000, value));
             case "jumps.blockAfterHit" -> blockAfterHit = value != 0;
             default -> {
