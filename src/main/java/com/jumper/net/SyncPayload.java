@@ -13,7 +13,8 @@ import java.util.List;
 
 /**
  * Server -> client: what the player's wheel should show. names.get(i) and icons.get(i) describe the spot at index i of
- * the player's list; an icon is an item id like "minecraft:furnace" or "". hasBack: there is a place to jump back to.
+ * the player's list; an icon is an item id like "minecraft:furnace", a fluid
+ * picture id like "fluid/minecraft:water", or "". hasBack: there is a place to jump back to.
  * slots: the anchor's real slot count; usable: how many of them work right now (fewer without power or with the base
  * unloaded). power: a {@code JumpService.Power} ordinal. energy, capacity (FE) and rate (FE per tick): the anchor's power.
  * here: where the player stood when this was sent (a {@code JumpService.HERE_} value). range: the anchor's real range in

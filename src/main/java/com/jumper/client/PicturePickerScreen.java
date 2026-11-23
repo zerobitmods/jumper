@@ -14,14 +14,19 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
- * Picks a spot's picture from every item in the game, opened by clicking a picture in the list. A search box at the
+ * Picks a spot's picture from every item and fluid in the game, opened by clicking a picture in the list. A search box at the
  * top (words match the name; "@word" matches the mod id), the player's hotbar under it for quick picks, then a grid of
  * everything that matches. Clicking a picture (or Enter for the first match) hands it back and returns to the list;
  * Esc or Cancel goes back without a change.
@@ -58,7 +63,7 @@ public class PicturePickerScreen extends WheelScreenBase {
     private static final int COLOR_THUMB = 0xFF707478;
 
     /** One picture the picker can offer. search is the name in lower case; mod is the id's namespace. */
-    private record Choice(String id, Picture picture, String name, String search, String mod) {
+    private record Choice(String id, Picture picture, String name, String search, String mod, boolean fluid) {
     }
 
     /** Everything, in registry order (the game's own items first), and the language its names are in. */
@@ -164,11 +169,32 @@ public class PicturePickerScreen extends WheelScreenBase {
                 ResourceLocation key = BuiltInRegistries.ITEM.getKey(item);
                 String name = stack.getHoverName().getString();
                 list.add(new Choice(key.toString(), Picture.of(stack), name, name.toLowerCase(Locale.ROOT),
-                        key.getNamespace()));
+                        key.getNamespace(), false));
             } catch (RuntimeException | LinkageError problem) {
                 // An item that can't even say its name: leave it out.
             }
         }
+        // Fluids: only the still kind (water, not flowing water), and never the empty fluid.
+        for (Fluid fluid : BuiltInRegistries.FLUID) {
+            try {
+                if (fluid == Fluids.EMPTY || !fluid.isSource(fluid.defaultFluidState())) {
+                    continue;
+                }
+                Picture picture = Picture.of(fluid);
+                ResourceLocation key = BuiltInRegistries.FLUID.getKey(fluid);
+                String name = picture.name().getString();
+                list.add(new Choice(picture.id(), picture, name, name.toLowerCase(Locale.ROOT), key.getNamespace(),
+                        true));
+            } catch (RuntimeException | LinkageError problem) {
+                // Same as items: leave it out.
+            }
+        }
+        // Each mod's fluids right after its items (a stable sort keeps everything else in registry order).
+        Map<String, Integer> modOrder = new HashMap<>();
+        for (Choice choice : list) {
+            modOrder.putIfAbsent(choice.mod(), modOrder.size());
+        }
+        list.sort(Comparator.comparingInt(choice -> modOrder.get(choice.mod())));
         return List.copyOf(list);
     }
 
@@ -391,7 +417,8 @@ public class PicturePickerScreen extends WheelScreenBase {
         }
         if (hoveredGrid >= 0) {
             Choice choice = this.matches.get(hoveredGrid);
-            hint = Component.literal(choice.name() + "  (" + choice.mod() + ")");
+            hint = Component.translatable(choice.fluid() ? "screen.jumper.picker.fluid" : "screen.jumper.picker.item",
+                    choice.name(), choice.mod());
         }
         drawScrollbar(graphics);
 

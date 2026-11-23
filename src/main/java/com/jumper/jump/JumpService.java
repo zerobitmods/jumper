@@ -30,6 +30,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -293,14 +294,34 @@ public final class JumpService {
         if (!editable(player.server, data, record, index, expected)) {
             return fail("spot_missing");
         }
-        ResourceLocation key = ResourceLocation.tryParse(itemId);
-        if (key == null || !BuiltInRegistries.ITEM.containsKey(key) || BuiltInRegistries.ITEM.get(key) == Items.AIR) {
+        String picture = pictureId(itemId);
+        if (picture == null) {
             return fail("picture_bad");
         }
         Spot old = record.spots().get(index);
-        data.replaceSpot(record, index, old.withIcon(key.toString()));
+        data.replaceSpot(record, index, old.withIcon(picture));
         JumperSync.send(player);
         return ok("picture_set", old.name());
+    }
+
+    /**
+     * The picture id to store for this text, or null if it names nothing on this server: an item id, or
+     * {@link JumperRules#FLUID_PICTURE} and a fluid id (any fluid but the empty one).
+     */
+    private static String pictureId(String text) {
+        if (text.startsWith(JumperRules.FLUID_PICTURE)) {
+            ResourceLocation key = ResourceLocation.tryParse(text.substring(JumperRules.FLUID_PICTURE.length()));
+            if (key == null || !BuiltInRegistries.FLUID.containsKey(key)
+                    || BuiltInRegistries.FLUID.get(key) == Fluids.EMPTY) {
+                return null;
+            }
+            return JumperRules.FLUID_PICTURE + key;
+        }
+        ResourceLocation key = ResourceLocation.tryParse(text);
+        if (key == null || !BuiltInRegistries.ITEM.containsKey(key) || BuiltInRegistries.ITEM.get(key) == Items.AIR) {
+            return null;
+        }
+        return key.toString();
     }
 
     /** True if the index is one the player can see in their list and the spot there has the expected name. */
