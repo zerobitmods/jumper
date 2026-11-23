@@ -18,6 +18,11 @@ public final class JumperRules {
 
     /** How far (in blocks) a player can look at a block to use it as a new spot's picture and name. */
     public static final double ICON_REACH = 5.0;
+    /**
+     * Start of a fluid picture's id: "fluid/" then the fluid's id ("fluid/minecraft:water"). A '/' can't be in an id's
+     * namespace, so this never reads as an item id: older Jumper versions show their fallback picture for it.
+     */
+    public static final String FLUID_PICTURE = "fluid/";
     /** Longest spot name, in characters. */
     public static final int MAX_NAME_LENGTH = 24;
 

@@ -26,7 +26,7 @@ public record EditPayload(byte action, int index, String expected, String text, 
      * kept when it was deleted; the client never sends a place.
      */
     public static final byte RESTORE = 6;
-    /** Undo of a picture change: set the spot's picture to the item with id {@link #text}. */
+    /** Set the spot's picture to {@link #text}: an item id, or a fluid one (see {@code JumperRules.FLUID_PICTURE}). */
     public static final byte PICTURE_SET = 7;
 
     /** Longest text either string may carry (names are shorter; item ids can be longer; the server checks both). */
