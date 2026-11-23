@@ -9,7 +9,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -33,7 +32,7 @@ public class NameScreen extends Screen {
     private static final int COLOR_TEXT_LOCKED = 0xFF707478;
     private static final int COLOR_PROBLEM = 0xFFE24B4A;
 
-    private final ItemStack picture;
+    private final Picture picture;
     private final String initial;
     private final List<ClientState.Entry> spots;
     /** Index of the spot being renamed (its own name doesn't count as taken), or -1 for a new spot. */
@@ -48,7 +47,7 @@ public class NameScreen extends Screen {
     private int cancelLeft;
     private int buttonTop;
 
-    public NameScreen(Component title, ItemStack picture, String initial, List<ClientState.Entry> spots, int self,
+    public NameScreen(Component title, Picture picture, String initial, List<ClientState.Entry> spots, int self,
             Consumer<String> onSave, Screen parent) {
         super(title);
         this.picture = picture;
@@ -144,7 +143,7 @@ public class NameScreen extends Screen {
         graphics.fill(this.left, this.top, right, bottom, COLOR_EDGE);
         graphics.fill(this.left + 1, this.top + 1, right - 1, bottom - 1, COLOR_PANEL);
         graphics.drawCenteredString(this.font, this.title, this.width / 2, this.top + 8, COLOR_TEXT);
-        graphics.renderItem(this.picture, this.left + 10, this.top + 24);
+        this.picture.draw(graphics, this.left + 10, this.top + 24);
         this.box.render(graphics, mouseX, mouseY, partialTick);
         Component problem = problem();
         drawButton(graphics, this.saveLeft, Component.translatable("screen.jumper.name.save"), mouseX, mouseY,

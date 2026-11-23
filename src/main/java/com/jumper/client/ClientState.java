@@ -1,11 +1,7 @@
 package com.jumper.client;
 
 import com.jumper.net.SyncPayload;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,10 +10,10 @@ import java.util.List;
 public final class ClientState {
 
     /**
-     * One spot as the wheel shows it. iconId is the picture's item id exactly as the server sent it (the list's Undo
-     * sends it back to put an old picture back).
+     * One spot as the wheel shows it. iconId is the picture's id exactly as the server sent it (the list's Undo sends
+     * it back to put an old picture back).
      */
-    public record Entry(String name, ItemStack icon, String iconId) {
+    public record Entry(String name, Picture icon, String iconId) {
     }
 
     /** Power states, matching {@code JumpService.Power} on the server. */
@@ -62,7 +58,7 @@ public final class ClientState {
         List<Entry> entries = new ArrayList<>();
         for (int i = 0; i < payload.names().size(); i++) {
             String icon = payload.icons().get(i);
-            entries.add(new Entry(payload.names().get(i), iconStack(icon), icon));
+            entries.add(new Entry(payload.names().get(i), Picture.of(icon), icon));
         }
         linked = payload.linked();
         hasBack = payload.hasBack();
@@ -139,13 +135,6 @@ public final class ClientState {
     /** Number of the last edit the server handled from this client. */
     public static int editSeq() {
         return editSeq;
-    }
-
-    /** The item for an icon id; an ender pearl if the id is empty or the item doesn't exist on this client. */
-    private static ItemStack iconStack(String id) {
-        ResourceLocation key = id.isEmpty() ? null : ResourceLocation.tryParse(id);
-        Item item = key == null ? Items.AIR : BuiltInRegistries.ITEM.get(key);
-        return new ItemStack(item == Items.AIR ? Items.ENDER_PEARL : item);
     }
 
     public static boolean linked() {
