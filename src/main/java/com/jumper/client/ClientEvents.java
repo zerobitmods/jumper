@@ -146,10 +146,10 @@ public final class ClientEvents {
         }
     }
 
-    /** The wheel, the spot list, the name box and the anchor's menu. */
+    /** The jump screen, the spot list, the name box, the layout settings and the anchor's menu. */
     static boolean isJumperScreen(Screen screen) {
         return screen instanceof WheelScreen || screen instanceof SpotListScreen || screen instanceof NameScreen
-                || screen instanceof AnchorScreen;
+                || screen instanceof LayoutScreen || screen instanceof AnchorScreen;
     }
 
     @SubscribeEvent
