@@ -56,11 +56,11 @@ public final class JumperRules {
                     "Power a tier 2 anchor uses while its chunk is loaded, in FE per tick. 0 = needs no power."),
             Setting.flag("tier2.crossDimension", false, "Whether tier 2 can jump between dimensions."),
             Setting.number("tier3.range", 2048, UNLIMITED, MAX_RANGE, "Range at tier 3 in blocks. -1 = no limit."),
-            Setting.number("tier3.slots", 32, 1, MAX_SLOTS, "Spots each linked player can save at tier 3."),
+            Setting.number("tier3.slots", 64, 1, MAX_SLOTS, "Spots each linked player can save at tier 3."),
             Setting.number("tier3.upkeep", 500_000, 0, MAX_UPKEEP, "Power a tier 3 anchor uses, in FE per tick."),
             Setting.flag("tier3.crossDimension", false, "Whether tier 3 can jump between dimensions."),
             Setting.number("tier4.range", UNLIMITED, UNLIMITED, MAX_RANGE, "Range at tier 4 in blocks. -1 = no limit."),
-            Setting.number("tier4.slots", 64, 1, MAX_SLOTS, "Spots each linked player can save at tier 4."),
+            Setting.number("tier4.slots", 256, 1, MAX_SLOTS, "Spots each linked player can save at tier 4."),
             Setting.number("tier4.upkeep", 5_000_000, 0, MAX_UPKEEP, "Power a tier 4 anchor uses, in FE per tick."),
             Setting.flag("tier4.crossDimension", true, "Whether tier 4 can jump between dimensions."),
             Setting.number("power.upkeepPerSpot", 2, 0, 1_000_000,
@@ -76,7 +76,7 @@ public final class JumperRules {
                     "Refuse jumps for 5 seconds after a mob or player hits you, and after you hit another player."));
 
     private static final int[] range = {64, 256, 2048, UNLIMITED};
-    private static final int[] slots = {8, 16, 32, 64};
+    private static final int[] slots = {8, 16, 64, 256};
     /** FE per tick for each tier; tier 1 (index 0) is always free. */
     private static final long[] upkeep = {0, 50_000, 500_000, 5_000_000};
     private static final boolean[] crossDimension = {false, false, false, true};
