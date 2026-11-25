@@ -84,4 +84,18 @@ public final class Picture {
         }
         graphics.renderItem(this.item, x, y);
     }
+
+    /** Draws the picture as a size x size square with its top-left corner here (16 is the normal size). */
+    public void draw(GuiGraphics graphics, int x, int y, int size) {
+        if (size == 16) {
+            draw(graphics, x, y);
+            return;
+        }
+        float scale = size / 16.0F;
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0.0F);
+        graphics.pose().scale(scale, scale, 1.0F);
+        draw(graphics, 0, 0);
+        graphics.pose().popPose();
+    }
 }
