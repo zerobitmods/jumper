@@ -842,29 +842,31 @@ public class WheelScreen extends WheelScreenBase {
         if (this.namesPage != this.page || this.namesWidth != labelWidth) {
             layoutNames(count, labelWidth, this.outer - this.inner >= TWO_LINE_MIN_RING);
         }
+        // Pictures as big as the ring allows with two lines of name under them: 32 pixels, else 24, else the normal 16.
+        int thickness = this.outer - this.inner;
+        int size = thickness >= 66 ? 32 : thickness >= 56 ? 24 : 16;
         for (int i = 0; i < count; i++) {
             ClientState.Entry spot = this.spots.get(pageStart() + i);
             double angle = -Math.PI / 2.0 + i * (2.0 * Math.PI / count);
             int x = centerX + (int) Math.round(Math.cos(angle) * middle);
             int y = centerY + (int) Math.round(Math.sin(angle) * middle);
-            // With the name on two lines the picture moves up, so picture and name stay centered on the same point.
+            // Picture, 2 pixels of air, then the name (one or two lines): the whole stack centered on the same point.
             boolean twoLines = this.nameBottom[i] != null;
-            int pictureTop = twoLines ? y - 18 : y - 13;
-            spot.icon().draw(graphics, x - 8, pictureTop);
+            int pictureTop = y - (size + 2 + (twoLines ? 18 : 8)) / 2;
+            spot.icon().draw(graphics, x - size / 2, pictureTop, size);
             boolean isLocked = locked(pageStart() + i);
             if (isLocked) {
                 // A dark veil over the picture (drawn above items, which sit higher than flat fills).
                 graphics.pose().pushPose();
                 graphics.pose().translate(0.0F, 0.0F, 200.0F);
-                graphics.fill(x - 8, pictureTop, x + 8, pictureTop + 16, 0xA0000000);
+                graphics.fill(x - size / 2, pictureTop, x - size / 2 + size, pictureTop + size, 0xA0000000);
                 graphics.pose().popPose();
             }
             int nameColor = isLocked ? COLOR_TEXT_LOCKED : i == hoveredNow ? COLOR_TEXT : COLOR_TEXT_SOFT;
+            int nameTopY = pictureTop + size + 2;
+            graphics.drawCenteredString(this.font, this.nameTop[i], x, nameTopY, nameColor);
             if (twoLines) {
-                graphics.drawCenteredString(this.font, this.nameTop[i], x, y, nameColor);
-                graphics.drawCenteredString(this.font, this.nameBottom[i], x, y + 10, nameColor);
-            } else {
-                graphics.drawCenteredString(this.font, this.nameTop[i], x, y + 5, nameColor);
+                graphics.drawCenteredString(this.font, this.nameBottom[i], x, nameTopY + 10, nameColor);
             }
         }
     }
