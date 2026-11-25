@@ -214,7 +214,7 @@ public class LayoutScreen extends Screen {
 
     /**
      * A small picture of the chosen shape between the per-page line and the Done button, with a note under it on how
-     * the grid fits this window. The wheel gets no picture.
+     * the grid fits this window.
      */
     private void drawPreview(GuiGraphics graphics, int centerX) {
         int noteY = doneTop() - 14;
@@ -237,6 +237,7 @@ public class LayoutScreen extends Screen {
             previewColumns = 3;
             previewRows = 3;
         } else {
+            drawWheelPreview(graphics, centerX, PREVIEW_TOP + roomTall / 2, Math.min(26, roomTall / 2));
             return;
         }
         int gap = 1;
@@ -261,5 +262,46 @@ public class LayoutScreen extends Screen {
         if (note != null) {
             graphics.drawCenteredString(this.font, note, centerX, noteY, COLOR_TEXT_DIM);
         }
+    }
+
+    /**
+     * A small wheel: eight wedges with a 1-pixel gap between them and the middle circle with its ring, drawn as
+     * horizontal strips of same-colored pixels.
+     */
+    private static void drawWheelPreview(GuiGraphics graphics, int centerX, int centerY, int outer) {
+        if (outer < 8) {
+            return;
+        }
+        int inner = Math.max(4, Math.round(outer * 0.31F));
+        for (int y = -outer; y < outer; y++) {
+            int start = -outer;
+            int current = 0;
+            for (int x = -outer; x <= outer; x++) {
+                int color = x == outer ? 0 : wheelPreviewColor(x + 0.5, y + 0.5, inner, outer);
+                if (color != current) {
+                    if (current != 0) {
+                        graphics.fill(centerX + start, centerY + y, centerX + x, centerY + y + 1, current);
+                    }
+                    start = x;
+                    current = color;
+                }
+            }
+        }
+    }
+
+    /** The preview's color at a point measured from its middle, or 0 for nothing. */
+    private static int wheelPreviewColor(double dx, double dy, int inner, int outer) {
+        double distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < inner - 1) {
+            return distance >= inner - 3 ? COLOR_CELL_MIDDLE : COLOR_CELL;
+        }
+        if (distance < inner || distance >= outer) {
+            return 0;
+        }
+        double turn = (Math.atan2(dy, dx) + Math.PI / 2.0) / (2.0 * Math.PI);
+        double part = (turn - Math.floor(turn)) * 8 + 0.5;
+        part -= Math.floor(part);
+        double toEdge = Math.min(part, 1.0 - part) * (2.0 * Math.PI / 8) * distance;
+        return toEdge < 0.5 ? 0 : COLOR_CELL;
     }
 }
