@@ -22,7 +22,7 @@ public final class Jumper {
     public static final String MOD_ID = "jumper";
     public static final Logger LOGGER = LogUtils.getLogger();
     /** Development step this build is at; bumped with every step. */
-    public static final String DEV_STEP = "24a";
+    public static final String DEV_STEP = "25";
 
     public Jumper(IEventBus modEventBus, ModContainer modContainer) {
         ModBlocks.register(modEventBus);

@@ -14,17 +14,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The jump wheel: a ring cut into one wedge per spot, eight spots to a page. Hold the key, move the mouse onto a wedge,
- * let go: you jump there. Scroll (or the left / right arrow keys) flips to the next eight. The inventory key closes it, like Esc. Buttons sit in the bottom
+ * The jump screen. Since step 25 the spots sit in a 3 x 3 grid: eight squares around a middle square, in the same
+ * places and order the old ring of wedges had (the first straight up, the rest clockwise), so a spot stays in the same
+ * direction. The middle square shows the power, as the ring's middle circle did. The ring code is kept for now
+ * ({@link #GRID} false draws the old wheel). Hold the key, move the mouse onto a spot, let go: you jump there. Scroll (or the left / right arrow keys) flips to the next eight. The inventory key closes it, like Esc. Buttons sit in the bottom
  * corners: "Save here" on the left (while a slot is free); "Home" (your anchor) and "Back" (once there's somewhere
  * to jump back to) on the right. Under them, the bottom row is the hint line (what letting go will do, or why not); the
  * ring is sized so it never reaches the buttons or the hint, at any window size (scripts/fit_check.py checks this).
  * Letting go on the middle circle, or on nothing, closes the wheel without doing anything.
  *
- * A name too long for its wedge goes on two lines (broken at a space where it can), when the ring is thick enough.
+ * A name too long for its square (or wedge) goes on two lines (broken at a space where it can), when the ring is thick enough.
  *
- * What you see is exactly what reacts: a wedge or button is chosen only while the mouse is on its drawn shape (the same
- * test draws it and picks it).
+ * Buttons and the ring's wedges are chosen only while the mouse is on their drawn shape (the same test draws and picks
+ * them). In the grid, the thin gaps between squares count as the nearest square, so the mouse never falls between two.
  *
  * A quick tap of the key (released before the mouse moved) leaves the wheel open, so it also works by clicking.
  *
@@ -43,6 +45,21 @@ public class WheelScreen extends WheelScreenBase {
     private static final int HINT_MARGIN = 4;
     /** Smallest ring, for windows too small to keep everything apart. */
     private static final int MIN_OUTER = 50;
+    /** True: the 3 x 3 grid (step 25). False: the old ring of wedges. */
+    private static final boolean GRID = true;
+    /** Pixels between two squares of the grid. */
+    private static final int GRID_GAP = 2;
+    /** Largest square, so pictures don't float in big empty squares on large windows. */
+    private static final int MAX_CELL = 76;
+    /** Smallest grid (half its width), for windows too small to keep everything apart. */
+    private static final int MIN_GRID_HALF = 36;
+    /**
+     * Which square (column, row) each spot of a page sits in, in the ring's order: straight up first, then clockwise.
+     * The middle square (1, 1) is the power display.
+     */
+    private static final int[][] GRID_CELLS = {{1, 0}, {2, 0}, {2, 1}, {2, 2}, {1, 2}, {0, 2}, {0, 1}, {0, 0}};
+    /** An empty square (a page with fewer than eight spots). */
+    private static final int COLOR_CELL_EMPTY = 0x40141418;
 
     /** What the mouse can be on, besides a wedge (0 and up, counted on the current page). */
     private static final int NOTHING = -1;
@@ -87,6 +104,12 @@ public class WheelScreen extends WheelScreenBase {
     /** Radius of the hole in the middle and of the ring's outer edge, in screen pixels. */
     private int inner;
     private int outer;
+    /** The grid: size of one square, its whole width, its top-left corner, and the picture size in it. */
+    private int cell;
+    private int gridSize;
+    private int gridLeft;
+    private int gridTop;
+    private int pictureSize = 16;
     /**
      * The ring as horizontal strips for each possible number of wedges (worked out the first time it's needed, per
      * screen size): 4 numbers each (row, first column, end column, id), measured from the middle of the screen.
@@ -175,6 +198,44 @@ public class WheelScreen extends WheelScreenBase {
         this.stripsByCount = new int[PER_PAGE + 1][];
         this.namesPage = -1;
         this.ringPixels = buildRing(this.inner - 2 - RING_THICKNESS, this.inner - 2);
+        layoutGrid(centerX, centerY);
+    }
+
+    /**
+     * Sizes the grid: as big as fits (up to {@link #MAX_CELL} squares) without reaching the hint line, a button (their
+     * places stay reserved even when not shown) or the page line above it. Pictures are 32 pixels when the squares
+     * have room for them and a name under them, else 24, else the normal 16.
+     */
+    private void layoutGrid(int centerX, int centerY) {
+        int[][] keepClear = {
+                {this.saveLeft, this.buttonTop, this.saveRight, this.buttonTop + BUTTON_HEIGHT},
+                {this.homeLeft, this.buttonTop, this.backRight, this.buttonTop + BUTTON_HEIGHT},
+                {BUTTON_MARGIN, BUTTON_MARGIN, this.editRight, BUTTON_MARGIN + BUTTON_HEIGHT}};
+        int half = Math.min(Math.round(Math.min(this.width, this.height) * 0.40F), (3 * MAX_CELL + 2 * GRID_GAP) / 2);
+        while (half > MIN_GRID_HALF && !gridFits(centerX, centerY, half, keepClear)) {
+            half--;
+        }
+        half = Math.max(MIN_GRID_HALF, half);
+        this.cell = (2 * half - 2 * GRID_GAP) / 3;
+        this.gridSize = 3 * this.cell + 2 * GRID_GAP;
+        this.gridLeft = centerX - this.gridSize / 2;
+        this.gridTop = centerY - this.gridSize / 2;
+        this.pictureSize = this.cell >= 46 ? 32 : this.cell >= 38 ? 24 : 16;
+    }
+
+    /** True if a grid this big (half its width) around the middle keeps 2 pixels clear of everything else. */
+    private boolean gridFits(int centerX, int centerY, int half, int[][] keepClear) {
+        // The hint line below, and the page line above (drawn 14 pixels over the grid).
+        if (centerY + half > this.hintTop - 3 || centerY - half - 14 < 4) {
+            return false;
+        }
+        for (int[] box : keepClear) {
+            if (centerX - half - 2 < box[2] && centerX + half + 2 > box[0] && centerY - half - 2 < box[3]
+                    && centerY + half + 2 > box[1]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Whole pixels from a point to the nearest point of a rectangle. */
@@ -264,11 +325,45 @@ public class WheelScreen extends WheelScreenBase {
                 return HOME;
             }
         }
+        if (GRID) {
+            return gridAt(mouseX, mouseY, pageCount());
+        }
         return ringAt(mouseX - this.width / 2.0, mouseY - this.height / 2.0, pageCount());
     }
 
     private static boolean pickable(int target) {
         return target >= 0 || target == SAVE || target == BACK || target == HOME || target == EDIT;
+    }
+
+    /**
+     * What part of the grid is at a point on screen: a spot number on this page, {@link #HUB} for the middle square, or
+     * {@link #NOTHING} (outside the grid, or a square with no spot). A gap counts as the nearer square.
+     */
+    private int gridAt(double mouseX, double mouseY, int count) {
+        if (mouseX < this.gridLeft || mouseX >= this.gridLeft + this.gridSize || mouseY < this.gridTop
+                || mouseY >= this.gridTop + this.gridSize) {
+            return NOTHING;
+        }
+        int step = this.cell + GRID_GAP;
+        int column = Math.min(2, (int) Math.floor((mouseX - this.gridLeft + GRID_GAP / 2.0) / step));
+        int row = Math.min(2, (int) Math.floor((mouseY - this.gridTop + GRID_GAP / 2.0) / step));
+        if (column == 1 && row == 1) {
+            return HUB;
+        }
+        for (int i = 0; i < count; i++) {
+            if (GRID_CELLS[i][0] == column && GRID_CELLS[i][1] == row) {
+                return i;
+            }
+        }
+        return NOTHING;
+    }
+
+    private int cellLeft(int column) {
+        return this.gridLeft + column * (this.cell + GRID_GAP);
+    }
+
+    private int cellTop(int row) {
+        return this.gridTop + row * (this.cell + GRID_GAP);
     }
 
     private int[] strips(int count) {
@@ -439,6 +534,91 @@ public class WheelScreen extends WheelScreenBase {
         final int centerY = this.height / 2;
         final int hoveredNow = this.hovered;
         final int count = pageCount();
+        if (GRID) {
+            renderGrid(graphics, count, hoveredNow);
+            drawHub(graphics, cellLeft(1) + this.cell / 2, cellTop(1) + this.cell / 2);
+        } else {
+            renderRing(graphics, centerX, centerY, count, hoveredNow);
+            drawHub(graphics, centerX, centerY);
+        }
+        if (this.pages > 1) {
+            // Above the grid (or ring), so the middle has room for the power.
+            graphics.drawCenteredString(this.font, Component.translatable("screen.jumper.wheel.page", this.page + 1,
+                    this.pages), centerX, Math.max(4, (GRID ? this.gridTop : centerY - this.outer) - 14), COLOR_TEXT);
+        }
+
+        if (!this.spots.isEmpty()) {
+            drawButtonAt(graphics, BUTTON_MARGIN, this.editRight, BUTTON_MARGIN, this.editLabel, hoveredNow == EDIT,
+                    false);
+        }
+
+        // Bottom corners: the two buttons.
+        if (canSave()) {
+            drawButton(graphics, this.saveLeft, this.saveRight, this.saveLabel, hoveredNow == SAVE, false);
+        }
+        if (this.hasBack) {
+            drawButton(graphics, this.backLeft, this.backRight, this.backLabel, hoveredNow == BACK,
+                    ClientState.here() != ClientState.HERE_OK);
+        }
+        drawButton(graphics, this.homeLeft, this.homeRight, this.homeLabel, hoveredNow == HOME, outOfRange());
+
+        // Bottom row, under the ring and the buttons: what letting go (or clicking) will do, or why it won't.
+        drawShrunk(graphics, hint(hoveredNow), centerX, this.hintTop, this.width - 8, COLOR_TEXT);
+    }
+
+    /**
+     * The grid: eight squares around the middle one. Each spot's square has its picture with the name under it, both
+     * centered in the square; squares with no spot on this page are drawn faint.
+     */
+    private void renderGrid(GuiGraphics graphics, int count, int hoveredNow) {
+        for (int i = 0; i < GRID_CELLS.length; i++) {
+            int left = cellLeft(GRID_CELLS[i][0]);
+            int top = cellTop(GRID_CELLS[i][1]);
+            int color;
+            if (i >= count) {
+                color = COLOR_CELL_EMPTY;
+            } else if (locked(pageStart() + i)) {
+                color = i == hoveredNow ? COLOR_WEDGE_LOCKED_HOVER : COLOR_WEDGE_LOCKED;
+            } else {
+                color = i == hoveredNow ? COLOR_WEDGE_HOVER : COLOR_WEDGE;
+            }
+            graphics.fill(left, top, left + this.cell, top + this.cell, color);
+        }
+        graphics.fill(cellLeft(1), cellTop(1), cellLeft(1) + this.cell, cellTop(1) + this.cell, COLOR_HUB);
+
+        int labelWidth = this.cell - 6;
+        if (this.namesPage != this.page || this.namesWidth != labelWidth) {
+            layoutNames(count, labelWidth, this.pictureSize + 2 + 18 <= this.cell);
+        }
+        int size = this.pictureSize;
+        for (int i = 0; i < count; i++) {
+            ClientState.Entry spot = this.spots.get(pageStart() + i);
+            int x = cellLeft(GRID_CELLS[i][0]) + this.cell / 2;
+            boolean twoLines = this.nameBottom[i] != null;
+            // Picture, 2 pixels of air, then one or two lines of name: the whole stack centered in the square.
+            int stack = size + 2 + (twoLines ? 18 : 8);
+            int pictureTop = cellTop(GRID_CELLS[i][1]) + (this.cell - stack) / 2;
+            int pictureLeft = x - size / 2;
+            spot.icon().draw(graphics, pictureLeft, pictureTop, size);
+            boolean isLocked = locked(pageStart() + i);
+            if (isLocked) {
+                // A dark veil over the picture (drawn above items, which sit higher than flat fills).
+                graphics.pose().pushPose();
+                graphics.pose().translate(0.0F, 0.0F, 200.0F);
+                graphics.fill(pictureLeft, pictureTop, pictureLeft + size, pictureTop + size, 0xA0000000);
+                graphics.pose().popPose();
+            }
+            int nameColor = isLocked ? COLOR_TEXT_LOCKED : i == hoveredNow ? COLOR_TEXT : COLOR_TEXT_SOFT;
+            int nameTopY = pictureTop + size + 2;
+            graphics.drawCenteredString(this.font, this.nameTop[i], x, nameTopY, nameColor);
+            if (twoLines) {
+                graphics.drawCenteredString(this.font, this.nameBottom[i], x, nameTopY + 10, nameColor);
+            }
+        }
+    }
+
+    /** The old ring: one wedge per spot, each with its picture and name. */
+    private void renderRing(GuiGraphics graphics, int centerX, int centerY, int count, int hoveredNow) {
         final int[] drawn = strips(count);
         // One batch for all the strips instead of one draw per strip.
         graphics.drawManaged(() -> {
@@ -462,7 +642,7 @@ public class WheelScreen extends WheelScreenBase {
         int labelWidth = count <= 1 ? 110
                 : Math.max(24, Math.min(110, (int) (2.0 * middle * Math.sin(Math.PI / count)) - 10));
         if (this.namesPage != this.page || this.namesWidth != labelWidth) {
-            layoutNames(count, labelWidth);
+            layoutNames(count, labelWidth, this.outer - this.inner >= TWO_LINE_MIN_RING);
         }
         for (int i = 0; i < count; i++) {
             ClientState.Entry spot = this.spots.get(pageStart() + i);
@@ -489,34 +669,9 @@ public class WheelScreen extends WheelScreenBase {
                 graphics.drawCenteredString(this.font, this.nameTop[i], x, y + 5, nameColor);
             }
         }
-
-        drawHub(graphics, centerX, centerY);
-        if (this.pages > 1) {
-            // Above the ring, so the middle circle has room for the power.
-            graphics.drawCenteredString(this.font, Component.translatable("screen.jumper.wheel.page", this.page + 1,
-                    this.pages), centerX, Math.max(4, centerY - this.outer - 14), COLOR_TEXT);
-        }
-
-        if (!this.spots.isEmpty()) {
-            drawButtonAt(graphics, BUTTON_MARGIN, this.editRight, BUTTON_MARGIN, this.editLabel, hoveredNow == EDIT,
-                    false);
-        }
-
-        // Bottom corners: the two buttons.
-        if (canSave()) {
-            drawButton(graphics, this.saveLeft, this.saveRight, this.saveLabel, hoveredNow == SAVE, false);
-        }
-        if (this.hasBack) {
-            drawButton(graphics, this.backLeft, this.backRight, this.backLabel, hoveredNow == BACK,
-                    ClientState.here() != ClientState.HERE_OK);
-        }
-        drawButton(graphics, this.homeLeft, this.homeRight, this.homeLabel, hoveredNow == HOME, outOfRange());
-
-        // Bottom row, under the ring and the buttons: what letting go (or clicking) will do, or why it won't.
-        drawShrunk(graphics, hint(hoveredNow), centerX, this.hintTop, this.width - 8, COLOR_TEXT);
     }
 
-    /** The line under the ring. */
+    /** The line under the grid (or ring). */
     private Component hint(int hoveredNow) {
         int power = ClientState.power();
         int here = ClientState.here();
@@ -593,15 +748,19 @@ public class WheelScreen extends WheelScreenBase {
         // Stored charge in thousandths of full.
         int charge = capacity <= 0 ? 0 : (int) Math.max(0L, Math.min(1000L, (long) (energy * 1000.0 / capacity)));
         if (needsPower) {
-            if (empty) {
-                drawRing(graphics, centerX, centerY, 1000, COLOR_NO_POWER);
+            int filled = empty ? 1000 : charge;
+            int color = empty ? COLOR_NO_POWER : unloaded ? COLOR_NOT_LOADED : COLOR_POWER;
+            if (GRID) {
+                drawSquareRing(graphics, cellLeft(1), cellTop(1), this.cell, filled, color);
             } else {
-                drawRing(graphics, centerX, centerY, charge, unloaded ? COLOR_NOT_LOADED : COLOR_POWER);
+                drawRing(graphics, centerX, centerY, filled, color);
             }
         }
 
-        // Text stays inside the ring (or the circle's edge when there is no ring), with a little air.
-        int textRadius = this.inner - 2 - (needsPower ? RING_THICKNESS : 0) - 3;
+        // Text stays inside the ring (or the circle's edge when there is no ring), with a little air. In the grid,
+        // textRadius is half the width a line may use inside the middle square.
+        int textRadius = GRID ? (this.cell - 2 * (needsPower ? RING_THICKNESS : 0) - 6) / 2
+                : this.inner - 2 - (needsPower ? RING_THICKNESS : 0) - 3;
         Component percent = Component.literal((charge / 10) + "%");
         if (outOfRange()) {
             drawHubLines(graphics, centerX, centerY, textRadius,
@@ -648,6 +807,11 @@ public class WheelScreen extends WheelScreenBase {
      */
     private void drawFitted(GuiGraphics graphics, Component text, int centerX, int centerY, int y, int radius,
             int color) {
+        if (GRID) {
+            // The middle square is as wide at every line.
+            drawShrunk(graphics, text, centerX, y, 2 * radius, color);
+            return;
+        }
         // The circle is narrowest at whichever edge of the line (top or bottom) is farther from the middle.
         int away = Math.max(Math.abs(y - centerY), Math.abs(y + 8 - centerY));
         int room = away >= radius ? 8 : (int) (2.0 * Math.sqrt((double) radius * radius - (double) away * away));
@@ -730,6 +894,46 @@ public class WheelScreen extends WheelScreenBase {
         });
     }
 
+    /**
+     * The power ring of the grid's middle square: a band this thick just inside its edge, filled clockwise from the
+     * middle of the top edge up to filled (thousandths), the rest faint.
+     */
+    private static void drawSquareRing(GuiGraphics graphics, int left, int top, int size, int filled, int color) {
+        int t = RING_THICKNESS;
+        int right = left + size;
+        int bottom = top + size;
+        int middle = left + size / 2;
+        // The five stretches in the order the charge fills them: top right half, right side, bottom, left side, top
+        // left half. Each is {left, top, right, bottom, direction}: 0 left to right, 1 top to bottom, 2 right to left,
+        // 3 bottom to top. They don't overlap; each corner belongs to one stretch.
+        int[][] stretches = {
+                {middle, top, right, top + t, 0},
+                {right - t, top + t, right, bottom, 1},
+                {left, bottom - t, right - t, bottom, 2},
+                {left, top, left + t, bottom - t, 3},
+                {left + t, top, middle, top + t, 0}};
+        int total = 0;
+        for (int[] s : stretches) {
+            total += s[4] % 2 == 0 ? s[2] - s[0] : s[3] - s[1];
+        }
+        int remaining = Math.round(total * Math.max(0, Math.min(1000, filled)) / 1000.0F);
+        for (int[] s : stretches) {
+            int length = s[4] % 2 == 0 ? s[2] - s[0] : s[3] - s[1];
+            int on = Math.max(0, Math.min(length, remaining));
+            remaining -= on;
+            graphics.fill(s[0], s[1], s[2], s[3], COLOR_POWER_EMPTY);
+            if (on == 0) {
+                continue;
+            }
+            switch (s[4]) {
+                case 0 -> graphics.fill(s[0], s[1], s[0] + on, s[3], color);
+                case 1 -> graphics.fill(s[0], s[1], s[2], s[1] + on, color);
+                case 2 -> graphics.fill(s[2] - on, s[1], s[2], s[3], color);
+                default -> graphics.fill(s[0], s[3] - on, s[2], s[3], color);
+            }
+        }
+    }
+
     /** dim: the button can't work right now (it still answers a click, with the reason). */
     private void drawButton(GuiGraphics graphics, int left, int right, Component label, boolean isHovered,
             boolean dim) {
@@ -746,8 +950,7 @@ public class WheelScreen extends WheelScreenBase {
     }
 
     /** Works out how each name on the current page is drawn (see {@link #nameTop}) and remembers what it was for. */
-    private void layoutNames(int count, int labelWidth) {
-        boolean roomForTwo = this.outer - this.inner >= TWO_LINE_MIN_RING;
+    private void layoutNames(int count, int labelWidth, boolean roomForTwo) {
         for (int i = 0; i < count; i++) {
             layoutName(i, this.spots.get(pageStart() + i).name(), labelWidth, roomForTwo);
         }
